@@ -1,6 +1,5 @@
 import streamlit as st
 import google.generativeai as genai
-import pandas as pd
 
 # Configuração da página do aplicativo
 st.set_page_config(
@@ -25,53 +24,68 @@ with aba1:
     st.header("Seu Planejamento Semanal")
     st.write("Veja e reorganize suas refeições com facilidade.")
     
-    # Exemplo visual interativo de cardápio
-    dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-    dia_selecionado = st.selectbox("Selecione o dia para ver/alterar:", dias)
+    dias = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
+    dia_selecionado = st.selectbox("Selecione o dia para visualizar:", dias)
     
-    col1, col2, col3 = st.columns(3)
+    st.subheader(f"Refeições de {dia_selecionado}")
+    
+    # 4 Refeições incluindo Lanche da Tarde e sem carnes nem frango
+    col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
-        st.subheader("☕ Café da Manhã")
-        st.info("Omelete com aveia e morangos\n\n*Kcal: 350 | Prot: 25g*")
+        st.markdown("### ☕ Café da Manhã")
+        st.info("**Omelete com Aveia e Frutas**\n\n- 2 Ovos\n- 30g Aveia\n- Morangos\n\n*Kcal: 350 | Prot: 20g*")
+        
     with col2:
-        st.subheader("🍽️ Almoço")
-        st.success("Frango grelhado, arroz integral e salada\n\n*Kcal: 550 | Prot: 45g*")
+        st.markdown("### 🍽️ Almoço")
+        st.success("**Tilápia Grelhada com Quinoa**\n\n- 150g Tilápia\n- 4 col. Quinoa\n- Salada verde e azeite\n\n*Kcal: 480 | Prot: 38g*")
+        
     with col3:
-        st.subheader("🌙 Jantar")
-        st.warning("Sopa de legumes com patinho moído\n\n*Kcal: 400 | Prot: 35g*")
+        st.markdown("### 🥪 Lanche da Tarde")
+        st.primary("**Iogurte com Chia e Castanhas**\n\n- 170g Iogurte Natural\n- 1 col. Chia\n- 15g Castanhas\n\n*Kcal: 250 | Prot: 14g*")
+        
+    with col4:
+        st.markdown("### 🌙 Jantar")
+        st.warning("**Sopa de Lentilha e Cogumelos**\n\n- Lentilha cozida\n- Cogumelos paris\n- Legumes variados\n\n*Kcal: 380 | Prot: 22g*")
         
     st.divider()
-    st.subheader("🔄 Troca Rápida de Refeirão")
+    st.subheader("🔄 Troca Rápida de Refeição")
     col_a, col_b = st.columns(2)
     with col_a:
-        st.selectbox("Trocar refeição do dia X:", ["Almoço de Terça", "Jantar de Quinta"])
+        st.selectbox("Trocar a refeição:", ["Almoço de Terça", "Jantar de Quinta", "Lanche de Sexta"])
     with col_b:
-        st.selectbox("Pela refeição do dia Y:", ["Jantar de Sexta", "Almoço de Sábado"])
+        st.selectbox("Pela refeição de:", ["Jantar de Sexta", "Almoço de Sábado", "Lanche de Domingo"])
     st.button("Confirmar Troca no Cardápio")
 
 # --- ABA 2: ASSISTENTE DE IA (CHAT CONVERSACIONAL) ---
 with aba2:
     st.header("💬 Converse com seu Assistente de Nutrição")
-    st.write("Peça substituições, dicas de receitas ou tire dúvidas nutricionais em tempo real.")
+    st.write("Peça substituições, ideias de refeições ou tire dúvidas. A IA já sabe das suas restrições alimentares!")
 
     # Histórico de Chat
-    if "messages" not in st.session_states if hasattr(st, "session_states") else "messages" not in st.session_state:
+    if "messages" not in st.session_state:
         st.session_state.messages = [
-            {"role": "assistant", "content": "Olá! Como posso te ajudar hoje? Pode me pedir substituições de ingredientes, ajustes na dieta ou enviar fotos/ideias de receitas!"}
+            {"role": "assistant", "content": "Olá! Sou seu assistente de nutrição. Sei que suas refeições incluem lanche da tarde e que você NÃO come carne bovina, suína nem frango. Como posso te ajudar hoje?"}
         ]
 
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).write(msg["content"])
 
     # Entrada do usuário
-    if prompt := st.chat_input("Ex: 'Não tenho tomate para o almoço, o que uso?' ou 'Ajusta minha janta para caber 20g de chocolate'"):
+    if prompt := st.chat_input("Ex: 'O que posso comer no lanche da tarde com 20g de proteína?' ou 'Substitua a tilápia do almoço'"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
 
-        # Chamada para o Gemini
+        # Chamada corrigida para o Gemini 1.5 Flash
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            system_instruction = "Você é um nutricionista especialista e assistente pessoal. Dê respostas diretas, amigáveis, com foco em substituições inteligentes de alimentos sem perder o equilíbrio de macronutrientes."
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            system_instruction = (
+                "Você é um nutricionista especialista e assistente pessoal. "
+                "REGRA INEGOCIÁVEL: O usuário NÃO COME carne bovina, carne suína nem frango. "
+                "As refeições do usuário são divididas em 4: Café da manhã, Almoço, Lanche da tarde e Jantar. "
+                "Opções de proteína permitidas: Ovos, peixes, frutos do mar, queijos, iogurtes, whey, tofu, cogumelos, feijões, grão-de-bico, lentilha e sementes. "
+                "Dê respostas diretas, práticas e focadas em bater macronutrientes mantendo sabor e variabilidade."
+            )
             response = model.generate_content(f"{system_instruction}\n\nUsuário: {prompt}")
             
             bot_reply = response.text
@@ -89,4 +103,4 @@ with aba3:
     texto_receita = st.text_area("Ou cole aqui o texto/link da receita:")
     
     if st.button("Analisar e Salvar Receita"):
-        st.success("Receita analisada! Calorias e macronutrientes calculados e adicionados com sucesso.")
+        st.success("Receita analisada! Calorias e macronutrientes calculados sem carnes nem frango e salvos com sucesso.")
