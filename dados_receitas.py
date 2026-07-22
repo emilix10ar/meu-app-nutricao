@@ -1,4 +1,96 @@
-# Este arquivo atua como nosso banco de dados temporário antes da conexão com o Google Sheets.
+import pandas as pd
+import streamlit as st
+
+# URL pública baseada no ID da sua planilha
+SHEET_ID = "1_WrmhHlN5a0Wob0b_gNoWh9tQ26NLRZbGp7mdLr2hrU"
+URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
+
+@st.cache_data(ttl=60) # O Streamlit guarda na memória e atualiza a cada 60 segundos
+def carregar_dados_planilha():
+    try:
+        df_rec = pd.read_csv(URL_BASE + "Receitas")
+        df_ing = pd.read_csv(URL_BASE + "Ingredientes_Linha")
+        df_nut = pd.read_csv(URL_BASE + "Nutricao")
+    except Exception:
+        # Se der erro ou a planilha estiver vazia, carrega o mock para a tela não quebrar
+        return _carregar_mock()
+        
+    if df_rec.empty or df_ing.empty:
+        return _carregar_mock()
+
+    receitas_db = {}
+    categorias_set = set()
+    todos_ingredientes = set()
+
+    # 1. Dicionário Nutricional (busca rápida de macros por 100g)
+    nutricao_dict = {}
+    for _, row in df_nut.iterrows():
+        nome = str(row.get('Nome_Alimento', '')).strip()
+        nutricao_dict[nome] = {
+            'kcal': float(row.get('Calorias_100g', 0) or 0),
+            'prot': float(row.get('Proteinas_100g', 0) or 0)
+        }
+
+    # 2. Montar Receitas
+    for _, rec in df_rec.iterrows():
+        ativo = str(rec.get('Ativo', 'Sim')).strip().lower()
+        if ativo in ['nao', 'não', 'n']:
+            continue
+            
+        id_rec = rec.get('ID_Receita')
+        nome_rec = str(rec.get('Nome_Receita', '')).strip()
+        
+        if not nome_rec or pd.isna(id_rec):
+            continue
+        
+        receitas_db[nome_rec] = {
+            "tipo": str(rec.get('Tipo_Refeicao', 'Geral')),
+            "preparo": str(rec.get('Modo_Preparo', 'Sem preparo cadastrado.')),
+            "kcal": 0,
+            "proteina": 0,
+            "ingredientes": []
+        }
+        
+        # 3. Cruzar com Ingredientes (Calculando a regra de 3)
+        ings = df_ing[df_ing['ID_Receita'] == id_rec]
+        kcal_total = 0
+        prot_total = 0
+        
+        for _, ing in ings.iterrows():
+            nome_ing = str(ing.get('Nome_Ingrediente', '')).strip()
+            if not nome_ing or pd.isna(nome_ing):
+                continue
+                
+            qtd = float(ing.get('Quantidade', 0) or 0)
+            unidade = str(ing.get('Unidade', '')).strip()
+            categoria = str(ing.get('Categoria_Compras', 'Outros')).strip()
+            
+            categorias_set.add(categoria)
+            todos_ingredientes.add(nome_ing)
+            
+            # Regra de 3: Caloria = (Caloria_100g / 100) * Qtd_Receita
+            if nome_ing in nutricao_dict:
+                kcal_total += (nutricao_dict[nome_ing]['kcal'] / 100) * qtd
+                prot_total += (nutricao_dict[nome_ing]['prot'] / 100) * qtd
+            
+            receitas_db[nome_rec]["ingredientes"].append({
+                "item": nome_ing,
+                "qtd": qtd,
+                "unidade": unidade,
+                "categoria": categoria,
+                "substitutos": [] # Simplificado: sem substitutos vindos da planilha por enquanto
+            })
+            
+        receitas_db[nome_rec]["kcal"] = round(kcal_total)
+        receitas_db[nome_rec]["proteina"] = round(prot_total)
+
+    categorias_compras = sorted(list(categorias_set))
+    return receitas_db, categorias_compras, sorted(list(todos_ingredientes))
+
+def _carregar_mock():
+    """ Retorna as receitas originais de exemplo enquanto a planilha ainda estiver vazia. """
+    return RECEITAS_DB, CATEGORIAS_COMPRAS, obter_todos_ingredientes()
+
 
 CATEGORIAS_COMPRAS = [
     "🥦 Hortifrúti (Horta, Pomar & Ervas)",
