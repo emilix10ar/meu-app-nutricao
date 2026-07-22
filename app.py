@@ -49,10 +49,18 @@ with st.sidebar:
             st.rerun()
 
 # --- FUNÇÕES AUXILIARES ---
+# Dicionário mock de receitas para substituir as letras pelos nomes
+receitas_mock = {
+    "Café da Manhã": {"A": "Panqueca de Aveia", "B": "Ovos Mexidos", "C": "Iogurte c/ Granola", "D": "Vitamina de Banana", "C1": "Panqueca de Aveia", "C2": "Ovos Mexidos", "C3": "Iogurte c/ Granola", "C4": "Vitamina de Banana", "C5": "Tapioca Fit", "C6": "Crepioca", "C7": "Pão de Queijo"},
+    "Almoço": {"A": "Bowl de Quinoa", "B": "Salada Grão de Bico", "C": "Macarrão Abobrinha", "D": "Escondidinho Fit", "A1": "Bowl de Quinoa", "A2": "Salada Grão de Bico", "A3": "Macarrão Abobrinha", "A4": "Escondidinho Fit", "A5": "Estrogonofe Veg", "A6": "Risoto Leve", "A7": "Feijoada Vegana"},
+    "Lanche da Tarde": {"A": "Iogurte com Frutas", "B": "Mix de Castanhas", "C": "Biscoito de Arroz", "D": "Smoothie Verde", "L1": "Iogurte com Frutas", "L2": "Mix de Castanhas", "L3": "Biscoito de Arroz", "L4": "Smoothie Verde", "L5": "Muffin de Banana", "L6": "Torrada c/ Pasta", "L7": "Palitos de Cenoura"},
+    "Jantar": {"A": "Sopa de Lentilha", "B": "Omelete de Espinafre", "C": "Creme de Abóbora", "D": "Salada Caprese", "J1": "Sopa de Lentilha", "J2": "Omelete de Espinafre", "J3": "Creme de Abóbora", "J4": "Salada Caprese", "J5": "Torta de Vegetais", "J6": "Yakisoba Leve", "J7": "Pizza Low Carb"}
+}
+
 # Função para gerar a matriz da semana baseada no nível de variação
 def gerar_matriz_semana(modo):
     if "Baixa" in modo:
-        return pd.DataFrame({
+        df = pd.DataFrame({
             "Refeição": ["Café da Manhã", "Almoço", "Lanche da Tarde", "Jantar"],
             "Segunda": ["A", "A", "A", "A"],
             "Terça": ["A", "A", "A", "A"],
@@ -63,7 +71,7 @@ def gerar_matriz_semana(modo):
             "Domingo": ["B", "B", "B", "B"]
         })
     elif "Média" in modo:
-        return pd.DataFrame({
+        df = pd.DataFrame({
             "Refeição": ["Café da Manhã", "Almoço", "Lanche da Tarde", "Jantar"],
             "Segunda": ["A", "A", "A", "B"],
             "Terça": ["A", "A", "B", "B"],
@@ -74,7 +82,7 @@ def gerar_matriz_semana(modo):
             "Domingo": ["C", "D", "C", "A"]
         })
     else:
-        return pd.DataFrame({
+        df = pd.DataFrame({
             "Refeição": ["Café da Manhã", "Almoço", "Lanche da Tarde", "Jantar"],
             "Segunda": ["C1", "A1", "L1", "J1"],
             "Terça": ["C2", "A2", "L2", "J2"],
@@ -84,6 +92,15 @@ def gerar_matriz_semana(modo):
             "Sábado": ["C6", "A6", "L6", "J6"],
             "Domingo": ["C7", "A7", "L7", "J7"]
         })
+        
+    # Substitui as letras (códigos) pelos nomes reais das receitas
+    for index, row in df.iterrows():
+        refeicao = row["Refeição"]
+        for col in df.columns[1:]:
+            codigo = df.at[index, col]
+            df.at[index, col] = receitas_mock[refeicao].get(codigo, codigo)
+            
+    return df
 
 # --- ÁREA PRINCIPAL DO APP ---
 st.title("🥗 NutriIA: Seu Planejador Personalizado")
@@ -126,8 +143,8 @@ with aba1:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown(f"#### ☕ Café da Manhã ({refeicoes_do_dia[0]})")
-        st.markdown("**Panqueca de Aveia**")
+        st.markdown(f"#### ☕ Café da Manhã")
+        st.markdown(f"**{refeicoes_do_dia[0]}**")
         st.caption("320 kcal | 15g Proteína")
         with st.expander("Ver Receita Completa"):
             st.markdown("**Ingredientes:**")
@@ -137,8 +154,8 @@ with aba1:
             st.button("Salvar Receita", key="save_cafe")
 
     with col2:
-        st.markdown(f"#### 🥗 Almoço ({refeicoes_do_dia[1]})")
-        st.markdown("**Bowl de Quinoa e Vegetais**")
+        st.markdown(f"#### 🥗 Almoço")
+        st.markdown(f"**{refeicoes_do_dia[1]}**")
         st.caption("450 kcal | 22g Proteína")
         with st.expander("Ver Receita Completa"):
             st.markdown("**Ingredientes (Pesados Crus):**")
@@ -148,8 +165,8 @@ with aba1:
             st.button("Salvar Receita", key="save_almoco")
 
     with col3:
-        st.markdown(f"#### 🍎 Lanche da Tarde ({refeicoes_do_dia[2]})")
-        st.markdown("**Iogurte com Frutas**")
+        st.markdown(f"#### 🍎 Lanche da Tarde")
+        st.markdown(f"**{refeicoes_do_dia[2]}**")
         st.caption("200 kcal | 12g Proteína")
         with st.expander("Ver Receita Completa"):
             st.markdown("**Ingredientes:**")
@@ -159,8 +176,8 @@ with aba1:
             st.button("Salvar Receita", key="save_lanche")
 
     with col4:
-        st.markdown(f"#### 🍲 Jantar ({refeicoes_do_dia[3]})")
-        st.markdown("**Sopa de Lentilha Nutritiva**")
+        st.markdown(f"#### 🍲 Jantar")
+        st.markdown(f"**{refeicoes_do_dia[3]}**")
         st.caption("380 kcal | 18g Proteína")
         with st.expander("Ver Receita Completa"):
             st.markdown("**Ingredientes (Pesados Crus):**")
