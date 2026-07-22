@@ -61,14 +61,18 @@ def buscar_opcoes_troca(refeicao_atual_nome):
 
 def gerar_texto_google_keep(lista_consolidada):
     """
-    Gera o texto formatado com marcadores [ ] prontos para colar no Google Keep.
+    Gera o texto formatado com marcadores [ ] prontos para colar no Google Keep,
+    ignorando itens que tiveram a quantidade ajustada para 0.
     """
     texto = "🛒 MINHA LISTA DE COMPRAS - NUTRIIA\n\n"
     
     for categoria, itens in lista_consolidada.items():
-        if itens:
+        # Filtra apenas itens com quantidade maior que zero
+        itens_validos = {k: v for k, v in itens.items() if v["qtd"] > 0}
+        
+        if itens_validos:
             texto += f"--- {categoria} ---\n"
-            for (nome, unidade), dados in itens.items():
+            for (nome, unidade), dados in itens_validos.items():
                 qtd = dados["qtd"]
                 texto += f"[ ] {nome} - {qtd}{unidade}\n"
             texto += "\n"
