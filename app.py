@@ -179,10 +179,16 @@ with aba2:
                         chave_base = f"base_{nome_ing}_{categoria}"
                         chave_qtd = f"qtd_{nome_ing}_{categoria}"
                         
-                        # Se o total calculado mudou (ao marcar/desmarcar refeições), atualiza o campo
-                        if chave_base not in st.session_state or st.session_state[chave_base] != dados["qtd"]:
+                        # Se a chave de quantidade ainda não existe na memória, inicializa
+                        if chave_qtd not in st.session_state:
+                            st.session_state[chave_qtd] = dados["qtd"]
+                            st.session_state[chave_base] = dados["qtd"]
+                        elif st.session_state.get(chave_base) != dados["qtd"]:
                             st.session_state[chave_base] = dados["qtd"]
                             st.session_state[chave_qtd] = dados["qtd"]
+
+                        # Recupera a quantidade salva de forma 100% segura sem risco de KeyError
+                        qtd_atual = int(st.session_state.get(chave_qtd, dados["qtd"]))
 
                         c_qtd, c_ing, c_sub = st.columns([1, 2.5, 1])
                         with c_qtd:
@@ -190,7 +196,7 @@ with aba2:
                             nova_qtd = st.number_input(
                                 f"Qtd ({unidade})",
                                 min_value=0,
-                                value=int(st.session_state[chave_qtd]),
+                                value=qtd_atual,
                                 step=1,
                                 key=chave_qtd,
                                 label_visibility="collapsed"
