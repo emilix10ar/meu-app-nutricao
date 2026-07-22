@@ -1,15 +1,13 @@
-from dados_receitas import RECEITAS_DB, CATEGORIAS_COMPRAS
-
-def consolidar_lista_compras(refeicoes_aprovadas):
+def consolidar_lista_compras(refeicoes_aprovadas, receitas_db, categorias_compras):
     """
     Soma as quantidades dos ingredientes de todas as refeições aprovadas no check-in.
     Retorna um dicionário organizado pelas 8 categorias de compras.
     """
-    lista_consolidada = {cat: {} for cat in CATEGORIAS_COMPRAS}
+    lista_consolidada = {cat: {} for cat in categorias_compras}
     
     for refeicao_nome in refeicoes_aprovadas:
         # Busca a receita no nosso banco
-        receita = RECEITAS_DB.get(refeicao_nome)
+        receita = receitas_db.get(refeicao_nome)
         if not receita:
             continue
             
@@ -21,10 +19,10 @@ def consolidar_lista_compras(refeicoes_aprovadas):
             substitutos = ing.get("substitutos", [])
             
             # Garante que a categoria existe no dicionário
-            if categoria not in lista_consolidada:
-                lista_consolidada[categoria] = {}
-                
-            chave_ingrediente = (nome, unidade)
+        if categoria not in lista_consolidada:
+            lista_consolidada[categoria] = {}
+            
+        chave_ingrediente = (nome, unidade)
             
             if chave_ingrediente in lista_consolidada[categoria]:
                 lista_consolidada[categoria][chave_ingrediente]["qtd"] += qtd
@@ -32,22 +30,22 @@ def consolidar_lista_compras(refeicoes_aprovadas):
                 lista_consolidada[categoria][chave_ingrediente] = {
                     "qtd": qtd,
                     "substitutos": substitutos
-                }
-                
+            }
+            
     return lista_consolidada
 
-def buscar_opcoes_troca(refeicao_atual_nome):
+def buscar_opcoes_troca(refeicao_atual_nome, receitas_db):
     """
     Procura no banco de dados 2 opções de receitas do mesmo tipo com macros parecidos.
     """
-    receita_atual = RECEITAS_DB.get(refeicao_atual_nome)
+    receita_atual = receitas_db.get(refeicao_atual_nome)
     if not receita_atual:
         return []
         
     tipo = receita_atual["tipo"]
     opcoes = []
     
-    for nome, dados in RECEITAS_DB.items():
+    for nome, dados in receitas_db.items():
         if nome != refeicao_atual_nome and dados["tipo"] == tipo:
             opcoes.append({
                 "nome": nome,
