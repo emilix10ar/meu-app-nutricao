@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from dados_receitas import RECEITAS_DB, obter_todos_ingredientes
+from dados_receitas import carregar_dados_planilha
 from logica_compras import consolidar_lista_compras, buscar_opcoes_troca, gerar_texto_google_keep
 
 # Configuração da página do aplicativo
@@ -9,6 +9,8 @@ st.set_page_config(
     page_icon="🥗",
     layout="wide"
 )
+
+RECEITAS_DB, CATEGORIAS_COMPRAS, todos_ingredientes = carregar_dados_planilha()
 
 with st.sidebar:
     st.header("⚙️ Suas Preferências")
@@ -31,7 +33,6 @@ with st.sidebar:
     if "lista_odios" not in st.session_state:
         st.session_state.lista_odios = []
 
-    todos_ingredientes = obter_todos_ingredientes()
     opcoes_disponiveis = [ing for ing in todos_ingredientes if ing not in st.session_state.lista_odios]
 
     alimento_selecionado = st.selectbox(
@@ -160,7 +161,7 @@ with aba2:
                         refeicoes_aprovadas.append(rec_atual)
                         
                     # Botão para trocar opção de refeição
-                    opcoes = buscar_opcoes_troca(rec_atual)
+                    opcoes = buscar_opcoes_troca(rec_atual, RECEITAS_DB)
                     if opcoes:
                         sub_cols = st.columns([1, 2])
                         with sub_cols[0]:
@@ -177,7 +178,7 @@ with aba2:
         if not refeicoes_aprovadas:
             st.warning("Nenhuma refeição foi marcada. Marque ao menos uma refeição à esquerda para gerar sua lista.")
         else:
-            lista_consolidada = consolidar_lista_compras(refeicoes_aprovadas)
+            lista_consolidada = consolidar_lista_compras(refeicoes_aprovadas, RECEITAS_DB, CATEGORIAS_COMPRAS)
             
             # Exibir categorias
             for categoria, itens in lista_consolidada.items():
