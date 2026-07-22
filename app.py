@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from dados_receitas import RECEITAS_DB
+from dados_receitas import RECEITAS_DB, obter_todos_ingredientes
 from logica_compras import consolidar_lista_compras, buscar_opcoes_troca, gerar_texto_google_keep
 
 # Configuração da página do aplicativo
@@ -26,15 +26,24 @@ with st.sidebar:
     )
     
     st.subheader("3. Alimentos Excluídos 🚫")
-    st.write("Digite um alimento para excluí-lo de todas as receitas.")
+    st.write("Pesquise e selecione um alimento para excluí-lo das receitas.")
     
     if "lista_odios" not in st.session_state:
         st.session_state.lista_odios = []
 
-    novo_odio = st.text_input("Ex: Coentro, Berinjela, Uva Passa...")
+    todos_ingredientes = obter_todos_ingredientes()
+    opcoes_disponiveis = [ing for ing in todos_ingredientes if ing not in st.session_state.lista_odios]
+
+    alimento_selecionado = st.selectbox(
+        "Digite para buscar na lista:",
+        options=[""] + opcoes_disponiveis,
+        index=0,
+        key="select_odio_input"
+    )
+    
     if st.button("Bloquear alimento"):
-        if novo_odio and novo_odio.lower() not in [item.lower() for item in st.session_state.lista_odios]:
-            st.session_state.lista_odios.append(novo_odio.title())
+        if alimento_selecionado and alimento_selecionado not in st.session_state.lista_odios:
+            st.session_state.lista_odios.append(alimento_selecionado)
             st.rerun()
             
     if st.session_state.lista_odios:
