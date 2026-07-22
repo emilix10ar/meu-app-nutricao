@@ -39,10 +39,17 @@ with st.sidebar:
             
     if st.session_state.lista_odios:
         st.markdown("**Meus itens excluídos:**")
-        for item in st.session_state.lista_odios:
-            st.markdown(f"- ❌ {item}")
+        # Exibe cada alimento com um botão individual para remoção
+        for item in list(st.session_state.lista_odios):
+            col_text, col_del = st.columns([3, 1])
+            with col_text:
+                st.write(f"❌ {item}")
+            with col_del:
+                if st.button("🗑️", key=f"del_{item}"):
+                    st.session_state.lista_odios.remove(item)
+                    st.rerun()
         
-        if st.button("Limpar Lista"):
+        if st.button("Limpar Toda a Lista"):
             st.session_state.lista_odios = []
             st.rerun()
 
@@ -168,10 +175,35 @@ with aba2:
                 if itens:
                     st.markdown(f"### {categoria}")
                     for (nome_ing, unidade), dados in itens.items():
-                        c_ing, c_sub = st.columns([2, 1])
+                        # Chaves para gerenciar a sincronização e edição manual no Streamlit
+                        chave_base = f"base_{nome_ing}_{categoria}"
+                        chave_qtd = f"qtd_{nome_ing}_{categoria}"
+                        
+                        # Se o total calculado mudou (ao marcar/desmarcar refeições), atualiza o campo
+                        if chave_base not in st.session_state or st.session_state[chave_base] != dados["qtd"]:
+                            st.session_state[chave_base] = dados["qtd"]
+                            st.session_state[chave_qtd] = dados["qtd"]
+
+                        c_qtd, c_ing, c_sub = st.columns([1, 2.5, 1])
+                        with c_qtd:
+                            # Seletor numérico para o usuário diminuir ou aumentar a quantidade
+                            nova_qtd = st.number_input(
+                                f"Qtd ({unidade})",
+                                min_value=0,
+                                value=int(st.session_state[chave_qtd]),
+                                step=1,
+                                key=chave_qtd,
+                                label_visibility="collapsed"
+                            )
+                            # Atualiza a quantidade consolidada para a exportação do Keep
+                            dados["qtd"] = nova_qtd
+
                         with c_ing:
-                            # Item com quantidade interativa e ajustável
-                            st.checkbox(f"**{dados['qtd']}{unidade}** de {nome_ing}", value=False, key=f"ing_{nome_ing}_{categoria}")
+                            if nova_qtd > 0:
+                                st.checkbox(f"**{nova_qtd} {unidade}** de {nome_ing}", value=False, key=f"ing_{nome_ing}_{categoria}")
+                            else:
+                                st.caption(f"~~{nome_ing} (Possuo em casa)~~")
+
                         with c_sub:
                             if dados["substitutos"]:
                                 with st.popover("🔄 Substituir"):
