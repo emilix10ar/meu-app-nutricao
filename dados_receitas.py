@@ -149,3 +149,14 @@ RECEITAS_DB = {
         "preparo": "1. Refogue o espinafre na frigideira até murchar.\n2. Batas os ovos, adicione o queijo e despeje sobre o espinafre.\n3. Vire para dourar ambos os lados."
     }
 }
+
+def obter_todos_ingredientes():
+    """
+    Varre todo o banco de dados de receitas e retorna uma lista ordenada 
+    com os nomes de todos os ingredientes cadastrados.
+    """
+    ingredientes = set()
+    for receita in RECEITAS_DB.values():
+        for ing in receita.get("ingredientes", []):
+            ingredientes.add(ing["item"])
+    return sorted(list(ingredientes))
