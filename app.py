@@ -3,7 +3,6 @@ import pandas as pd
 from dados_receitas import carregar_dados_planilha
 from logica_compras import consolidar_lista_compras, buscar_opcoes_troca, gerar_texto_google_keep
 
-# Configuração da página do aplicativo
 st.set_page_config(
     page_title="NutriIA - Sua Dieta Inteligente",
     page_icon="🥗",
@@ -28,7 +27,7 @@ with st.sidebar:
     )
     
     st.subheader("3. Alimentos Excluídos 🚫")
-    st.write("Pesquise e selecione um alimento para excluí-lo das receitas.")
+    st.write("Pesquise e selecione um alimento para excluí-lo.")
     
     if "lista_odios" not in st.session_state:
         st.session_state.lista_odios = []
@@ -49,7 +48,6 @@ with st.sidebar:
             
     if st.session_state.lista_odios:
         st.markdown("**Meus itens excluídos:**")
-        # Exibe cada alimento com um botão individual para remoção
         for item in list(st.session_state.lista_odios):
             col_text, col_del = st.columns([3, 1])
             with col_text:
@@ -66,15 +64,15 @@ with st.sidebar:
 if "trocas_usuario" not in st.session_state:
     st.session_state.trocas_usuario = {}
 
-# Mapeamento do Cardápio Semanal Base
+# Matriz base focada nas refeições cadastradas no Sheets/Mock
 MATRIZ_BASE = {
-    "Segunda": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Iogurte com Chia e Castanhas", "Sopa de Lentilha e Cogumelos"],
-    "Terça": ["Ovos Mexidos", "Bowl de Quinoa", "Mix de Castanhas", "Omelete de Espinafre"],
-    "Quarta": ["Iogurte c/ Granola", "Salada Grão de Bico", "Iogurte com Chia e Castanhas", "Sopa de Lentilha e Cogumelos"],
-    "Quinta": ["Vitamina de Banana", "Tilápia Grelhada com Quinoa", "Mix de Castanhas", "Omelete de Espinafre"],
-    "Sexta": ["Panqueca de Aveia", "Bowl de Quinoa", "Iogurte com Chia e Castanhas", "Sopa de Lentilha e Cogumelos"],
-    "Sábado": ["Ovos Mexidos", "Salada Grão de Bico", "Mix de Castanhas", "Omelete de Espinafre"],
-    "Domingo": ["Iogurte c/ Granola", "Tilápia Grelhada com Quinoa", "Iogurte com Chia e Castanhas", "Sopa de Lentilha e Cogumelos"]
+    "Segunda": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"],
+    "Terça": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"],
+    "Quarta": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"],
+    "Quinta": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"],
+    "Sexta": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"],
+    "Sábado": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"],
+    "Domingo": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"]
 }
 
 st.title("🥗 NutriIA: Seu Planejador Personalizado")
@@ -88,7 +86,7 @@ aba1, aba2, aba3, aba4 = st.tabs([
 
 with aba1:
     st.header("Seu Planejamento Semanal")
-    st.info(f"**Filtros Ativos:** Dieta {estilo_dieta} | Alergias: {', '.join(alergias) if alergias else 'Nenhuma'} | Itens excluídos: {len(st.session_state.lista_odios)}")
+    st.info(f"**Filtros Ativos:** Dieta {estilo_dieta} | Alergias: {', '.join(alergias) if alergias else 'Nenhuma'}")
     
     st.subheader("1. Nível de Variação da Semana")
     modo_variacao = st.radio(
@@ -97,9 +95,8 @@ with aba1:
         horizontal=True
     )
     
-    st.markdown("**Visão Geral da Semana (Nomes das Receitas):**")
+    st.markdown("**Visão Geral da Semana:**")
     
-    # Criar DataFrame para exibição
     df_semana = pd.DataFrame(MATRIZ_BASE)
     df_semana.insert(0, "Refeição", ["Café da Manhã", "Almoço", "Lanche da Tarde", "Jantar"])
     st.dataframe(df_semana, hide_index=True, use_container_width=True)
@@ -115,11 +112,12 @@ with aba1:
     
     for idx, col in enumerate(cols):
         rec_nome = refeicoes_dia[idx]
-        rec_info = RECEITAS_DB.get(rec_nome, {})
+        # .get seguro caso o usuário adicione um prato na planilha que não exista na matriz
+        rec_info = RECEITAS_DB.get(rec_nome, {"kcal": 0, "proteina": 0, "ingredientes": [], "preparo": "Receita não encontrada."})
         with col:
             st.markdown(f"#### {titulos[idx]}")
             st.markdown(f"**{rec_nome}**")
-            st.caption(f"{rec_info.get('kcal', 300)} kcal | {rec_info.get('proteina', 15)}g Proteína")
+            st.caption(f"{rec_info.get('kcal', 0)} kcal | {rec_info.get('proteina', 0)}g Proteína")
             with st.expander("Ver Receita Completa"):
                 st.markdown("**Ingredientes:**")
                 for ing in rec_info.get("ingredientes", []):
@@ -129,10 +127,9 @@ with aba1:
 
 with aba2:
     st.header("🛒 Seleção de Refeições & Lista de Compras Inteligente")
-    st.write("Marque as refeições que você fará em casa. Desmarque as que comer fora para economizar nas compras!")
+    st.write("Marque as refeições que fará em casa. Desmarque as que comer fora para economizar!")
     
     col_check, col_lista = st.columns([1, 1])
-    
     refeicoes_aprovadas = []
     
     with col_check:
@@ -145,12 +142,9 @@ with aba2:
                 
                 for idx, tipo in enumerate(refeicao_tipos):
                     rec_padrao = refeicoes_dia[idx]
-                    
-                    # Verificar se o usuário já realizou uma troca
                     chave_troca = f"{dia}_{tipo}"
                     rec_atual = st.session_state.trocas_usuario.get(chave_troca, rec_padrao)
                     
-                    # Checkbox para aceitar a refeição na lista de compras
                     fara_refeicao = st.checkbox(
                         f"{tipo}: **{rec_atual}**", 
                         value=True, 
@@ -160,7 +154,6 @@ with aba2:
                     if fara_refeicao:
                         refeicoes_aprovadas.append(rec_atual)
                         
-                    # Botão para trocar opção de refeição
                     opcoes = buscar_opcoes_troca(rec_atual, RECEITAS_DB)
                     if opcoes:
                         sub_cols = st.columns([1, 2])
@@ -176,20 +169,17 @@ with aba2:
         st.subheader("2. Sua Lista de Compras Consolidada")
         
         if not refeicoes_aprovadas:
-            st.warning("Nenhuma refeição foi marcada. Marque ao menos uma refeição à esquerda para gerar sua lista.")
+            st.warning("Nenhuma refeição foi marcada à esquerda para gerar a lista.")
         else:
             lista_consolidada = consolidar_lista_compras(refeicoes_aprovadas, RECEITAS_DB, CATEGORIAS_COMPRAS)
             
-            # Exibir categorias
             for categoria, itens in lista_consolidada.items():
                 if itens:
                     st.markdown(f"### {categoria}")
                     for (nome_ing, unidade), dados in itens.items():
-                        # Chaves para gerenciar a sincronização e edição manual no Streamlit
                         chave_base = f"base_{nome_ing}_{categoria}"
                         chave_qtd = f"qtd_{nome_ing}_{categoria}"
                         
-                        # Se a chave de quantidade ainda não existe na memória, inicializa
                         if chave_qtd not in st.session_state:
                             st.session_state[chave_qtd] = dados["qtd"]
                             st.session_state[chave_base] = dados["qtd"]
@@ -197,21 +187,18 @@ with aba2:
                             st.session_state[chave_base] = dados["qtd"]
                             st.session_state[chave_qtd] = dados["qtd"]
 
-                        # Recupera a quantidade salva de forma 100% segura sem risco de KeyError
-                        qtd_atual = int(st.session_state.get(chave_qtd, dados["qtd"]))
+                        qtd_atual = float(st.session_state.get(chave_qtd, dados["qtd"]))
 
                         c_qtd, c_ing, c_sub = st.columns([1, 2.5, 1])
                         with c_qtd:
-                            # Seletor numérico para o usuário diminuir ou aumentar a quantidade
                             nova_qtd = st.number_input(
                                 f"Qtd ({unidade})",
-                                min_value=0,
+                                min_value=0.0,
                                 value=qtd_atual,
-                                step=1,
+                                step=1.0,
                                 key=chave_qtd,
                                 label_visibility="collapsed"
                             )
-                            # Atualiza a quantidade consolidada para a exportação do Keep
                             dados["qtd"] = nova_qtd
 
                         with c_ing:
@@ -229,11 +216,9 @@ with aba2:
             
             st.divider()
             
-            # Botão de Exportação para o Google Keep
             st.subheader("3. Exportar para o Google Keep")
             texto_keep = gerar_texto_google_keep(lista_consolidada)
-            
-            st.text_area("Copie o texto abaixo e cole diretamente em uma nota do Google Keep:", value=texto_keep, height=200)
+            st.text_area("Copie o texto abaixo e cole no Google Keep:", value=texto_keep, height=200)
 
 with aba3:
     st.header("💬 Converse com seu Assistente de Nutrição")
@@ -241,4 +226,4 @@ with aba3:
 
 with aba4:
     st.header("📖 Seu Livro de Receitas")
-    st.write("Sua biblioteca de receitas personalizadas.")
+    st.write("Sua biblioteca de receitas conectada automaticamente ao Google Sheets.")
