@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 
-# ID extraído do seu link: 1_WrmhHlN5a0Wob0b_gNoWh9tQ26NLRZbGp7mdLr2hrU
 SHEET_ID = "1_WrmhHlN5a0Wob0b_gNoWh9tQ26NLRZbGp7mdLr2hrU"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
@@ -12,7 +11,6 @@ def carregar_dados_planilha():
         df_ing = pd.read_csv(URL_BASE + "Ingredientes_Linha")
         df_nut = pd.read_csv(URL_BASE + "Nutricao")
     except Exception:
-        # Se a planilha ainda estiver vazia, usa os dados de teste (mock)
         return _carregar_mock()
         
     if df_rec.empty or df_ing.empty:
@@ -80,8 +78,10 @@ def carregar_dados_planilha():
         receitas_db[nome_rec]["kcal"] = round(kcal_total)
         receitas_db[nome_rec]["proteina"] = round(prot_total)
 
-    categorias_compras = sorted(list(categorias_set))
-    return receitas_db, categorias_compras, sorted(list(todos_ingredientes))
+    categorias_compras = sorted(list(categorias_set)) if categorias_set else CATEGORIAS_COMPRAS
+    ingredientes_lista = sorted(list(todos_ingredientes)) if todos_ingredientes else obter_todos_ingredientes()
+    
+    return receitas_db, categorias_compras, ingredientes_lista
 
 def _carregar_mock():
     return RECEITAS_DB, CATEGORIAS_COMPRAS, obter_todos_ingredientes()
