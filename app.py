@@ -286,7 +286,7 @@ with aba3:
                             full_prompt = f"{system_prompt}\n\nPergunta do usuário: {prompt_usuario}"
                             
                             response = client.models.generate_content(
-                                model='gemini-3.5-flash',
+                                model='gemini-3.6-flash',
                                 contents=full_prompt,
                             )
                             resposta_texto = response.text
