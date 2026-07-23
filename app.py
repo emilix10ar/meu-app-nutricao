@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import json
+from PIL import Image
 from dados_receitas import carregar_dados_planilha
 from logica_compras import consolidar_lista_compras, buscar_opcoes_troca, gerar_texto_google_keep
 
@@ -75,13 +77,17 @@ MATRIZ_BASE = {
     "Domingo": ["Panqueca de Aveia", "Tilápia Grelhada com Quinoa", "Panqueca de Aveia", "Tilápia Grelhada com Quinoa"]
 }
 
+# Tenta obter a chave do Streamlit Secrets globalmente para uso em várias abas
+api_key = st.secrets.get("GEMINI_API_KEY")
+
 st.title("🥗 NutriIA: Seu Planejador Personalizado")
 
-aba1, aba2, aba3, aba4 = st.tabs([
+aba1, aba2, aba3, aba4, aba5 = st.tabs([
     "📅 Cardápio da Semana", 
     "🛒 Montar Lista & Compras", 
     "💬 Assistente & Substituições", 
-    "📖 Livro de Receitas"
+    "📖 Livro de Receitas",
+    "➕ Importar Receita"
 ])
 
 # ----- ABA 1: CARDÁPIO DA SEMANA -----
@@ -226,9 +232,6 @@ with aba3:
     st.header("💬 Converse com seu Assistente de Nutrição (IA)")
     st.write("Tire dúvidas nutricionais, receba dicas de substituição e peça sugestões com base no seu banco de dados e preferências!")
     
-    # Tenta obter a chave do Streamlit Secrets
-    api_key = st.secrets.get("GEMINI_API_KEY")
-    
     if not api_key:
         st.warning("⚠️ **Chave do Gemini não configurada nos Secrets!**")
         st.info(
@@ -293,7 +296,14 @@ with aba3:
                             st.markdown(resposta_texto)
                             st.session_state.chat_messages.append({"role": "assistant", "content": resposta_texto})
                         except Exception as e:
-                            st.error(f"Erro ao comunicar com a inteligência artificial: {e}")
+                            error_msg = str(e)
+                            if "503" in error_msg or "high demand" in error_msg.lower():
+                                error_text = "Desculpe, a inteligência artificial está recebendo muitos pedidos no momento (alta demanda). Por favor, aguarde alguns minutos e tente novamente."
+                            else:
+                                error_text = f"Erro ao comunicar com a inteligência artificial: {e}"
+                            
+                            st.error(error_text)
+                            st.session_state.chat_messages.append({"role": "assistant", "content": error_text})
         except ImportError:
             st.error("Biblioteca `google-genai` não instalada. Verifique se atualizou o arquivo `requirements.txt` no GitHub.")
 
@@ -318,3 +328,98 @@ with aba4:
                     
                     with st.expander("Modo de Preparo"):
                         st.write(dados.get("preparo", "Sem modo de preparo informado."))
+
+# ----- ABA 5: IMPORTAR RECEITA -----
+with aba5:
+    st.header("➕ Importar Receita (Imagem ou Texto)")
+    st.write("Tirou print de uma receita legal? Ou copiou o texto de um site? A Inteligência Artificial extrai os ingredientes, calcula os dados e insere no seu sistema!")
+    
+    tipo_entrada = st.radio("Como você quer enviar a receita?", ["🖼️ Imagem (Foto / Print da Tela)", "📝 Texto Colado"])
+    
+    conteudo_envio = None
+    
+    if "Imagem" in tipo_entrada:
+        arquivo_imagem = st.file_uploader("Faça o upload do print ou foto da receita", type=["png", "jpg", "jpeg"])
+        if arquivo_imagem:
+            conteudo_envio = Image.open(arquivo_imagem)
+            st.image(conteudo_envio, width=300, caption="Imagem pronta para análise da IA.")
+    else:
+        texto_receita = st.text_area("Cole aqui todo o texto da receita (Ingredientes, nome, preparo):", height=200)
+        if texto_receita.strip():
+            conteudo_envio = texto_receita
+            
+    if st.button("✨ Analisar e Extrair Receita com IA", type="primary"):
+        if not api_key:
+             st.error("⚠️ Configure sua chave da API do Gemini (veja na Aba 3) para usar a extração inteligente.")
+        elif not conteudo_envio:
+             st.warning("Por favor, envie uma imagem ou cole o texto primeiro!")
+        else:
+             with st.spinner("A IA está lendo a receita, calculando nutrientes e categorizando ingredientes..."):
+                 try:
+                     from google import genai
+                     client = genai.Client(api_key=api_key)
+                     
+                     prompt_extracao = """
+Você é um assistente nutricional especialista. Leia a receita fornecida (seja na imagem anexada ou no texto). 
+Sua missão é estruturá-la. Se a receita original não fornecer as calorias e proteínas, ESTIME um valor aproximado com base nos ingredientes e quantidades.
+
+Você deve responder EXCLUSIVAMENTE em formato JSON (válido) com esta exata estrutura:
+{
+  "nome_receita": "Nome criativo e claro da receita",
+  "tipo": "Classifique APENAS entre: Café da Manhã, Almoço, Lanche da Tarde, Jantar ou Lanche Livre",
+  "kcal": numero inteiro (ex: 350),
+  "proteina": numero inteiro (ex: 25),
+  "preparo": "Instruções passo a passo (utilize quebras de linha com \\n)",
+  "ingredientes": [
+    {
+      "item": "Nome do ingrediente base limpo (ex: Aveia em flocos)",
+      "qtd": numero (apenas numero, converta frações. ex: 1 ou 1.5. Se for a gosto coloque 0),
+      "unidade": "g, ml, colher de sopa, xícara, unidade, fatias",
+      "categoria": "Classifique EXATAMENTE em uma dessas: 🥦 Hortifrúti (Horta, Pomar & Ervas) OU 🥩 Açougue, Peixaria & Frios OU 🌾 Mercearia Seca (Grãos, Massas & Farinhas) OU 🫒 Condimentos, Óleos & Enlatados"
+    }
+  ]
+}
+"""
+                     # O Gemini recebe a instrução estruturada e o conteúdo (seja a classe Image do PIL ou a String)
+                     response = client.models.generate_content(
+                         model='gemini-3.6-flash',
+                         contents=[prompt_extracao, conteudo_envio]
+                     )
+                     
+                     # Tratamento para garantir a extração do JSON retornado pela IA
+                     texto_json = response.text.strip()
+                     if texto_json.startswith("```json"):
+                         texto_json = texto_json[7:-3].strip()
+                     elif texto_json.startswith("```"):
+                         texto_json = texto_json[3:-3].strip()
+                         
+                     dados_extraidos = json.loads(texto_json)
+                     st.session_state.receita_temp = dados_extraidos
+                     st.success("✅ Receita lida e extraída com sucesso!")
+                     
+                 except json.JSONDecodeError:
+                     st.error("A IA respondeu, mas os dados não puderam ser formatados corretamente. Tente enviar a imagem novamente.")
+                 except Exception as e:
+                     st.error(f"Ocorreu um erro ao processar a receita: {e}")
+                     
+    if "receita_temp" in st.session_state:
+        dados = st.session_state.receita_temp
+        
+        st.divider()
+        st.subheader("📋 Resumo da Leitura da IA")
+        st.json(dados)
+        
+        st.info("💡 **Dica:** Esta receita será adicionada ao seu banco de dados para você testar nessa sessão. Como a sua planilha do Sheets é leitura-pública, você pode usar os dados estruturados acima para facilitar sua vida e colar na planilha para deixá-la salva para sempre!")
+        
+        if st.button("💾 Adicionar à Minha Lista e ao Livro (Nesta Sessão)"):
+            nome = dados.get("nome_receita", "Nova Receita IA")
+            # Injetando dinamicamente no banco de dados temporário desta sessão
+            RECEITAS_DB[nome] = {
+                "tipo": dados.get("tipo", "Geral"),
+                "kcal": dados.get("kcal", 0),
+                "proteina": dados.get("proteina", 0),
+                "preparo": dados.get("preparo", "Preparo não informado."),
+                "ingredientes": dados.get("ingredientes", [])
+            }
+            del st.session_state.receita_temp
+            st.success(f"Show! A receita '{nome}' já está no seu Livro de Receitas. Vá na Aba 4 para conferir!")
